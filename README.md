@@ -19,3 +19,9 @@ Alternatively, clone this repository by hand and install with:
     git clone https://github.com/kierdavis/dateparser.git
     cd dateparser
     go install
+
+## Documentation
+
+Godoc: http://godoc.org/github.com/kierdavis/dateparser
+
+Example code: http://godoc.org/github.com/kierdavis/dateparser#_example_Parser-Parse
