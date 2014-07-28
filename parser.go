@@ -871,9 +871,9 @@ loop:
 
 				} else if tokenLength <= 2 {
 
-					parseIntResult64, err = strconv.ParseInt(tokens[i][:2], 10, 0)
+					parseIntResult64, err = strconv.ParseInt(tokens[i], 10, 0)
 					if err != nil {
-						return res, ParseError{timestr, "Could not parse number", tokens[i][:2]}
+						return res, ParseError{timestr, "Could not parse number", tokens[i]}
 					}
 
 					res.TZOffset = int(parseIntResult64) * 3600
