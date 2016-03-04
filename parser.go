@@ -31,20 +31,20 @@ func (e ParseError) Error() string {
 	return fmt.Sprintf("Could not parse date %q: %s (at %q)", e.Timestr, e.Why, e.Where)
 }
 
-func parseMS(s string) (secs int, ms int, ok bool) {
-	var secs64, ms64 int64
+func parseNS(s string) (secs int, ns int, ok bool) {
+	var secs64, ns64 int64
 	var err1, err2 error
 
 	if findPeriod(s) < 0 {
 		secs64, err1 = strconv.ParseInt(s, 10, 0)
 	} else {
 		i, f := splitPeriod(s)
-		f = (f + "00000")[:6]
+		f = (f + "00000000")[:9]
 		secs64, err1 = strconv.ParseInt(i, 10, 0)
-		ms64, err2 = strconv.ParseInt(f, 10, 0)
+		ns64, err2 = strconv.ParseInt(f, 10, 0)
 	}
 
-	return int(secs64), int(ms64), (err1 == nil && err2 == nil)
+	return int(secs64), int(ns64), (err1 == nil && err2 == nil)
 }
 
 func convertYear(year int) (res int) {
@@ -238,7 +238,7 @@ func pertain(s string) (p int) {
 type parseresult struct {
 	Day         int
 	Hour        int
-	Microsecond int
+	Nanosecond  int
 	Minute      int
 	Month       int
 	Second      int
@@ -256,30 +256,30 @@ type Parser struct {
     // taken from). Defaults to the current time truncated to the nearest day
     // (i.e. midnight today).
 	Default time.Time
-    
+
     // Whether or not to perform a fuzzy search. Specifically, invalid tokens
     // are ignored if this is true and cause a parse failure if this is false.
 	Fuzzy bool
-    
+
     // In cases where the day and month cannot be distinguished (such as
     // 10-09-2003), this setting is checked to determine the preferred order.
     // With DayFirst set to false, "10-09-2003" will be parsed as "mm-dd-yyyy" (9th Oct 2003).
     // With DayFirst set to true, "10-09-2003" will be parsed as "dd-mm-yyyy" (10th Sep 2003).
 	DayFirst bool
-    
+
     // In cases where a 2-digit year cannot be distinguished from the day or
     // month (such as 10-09-03), this setting is checked to determine the
     // preferred order.
     // With YearFirst set to false, "10-09-03" will be parsed as "mm-dd-yy" (9th Oct 2003).
     // With YearFirst set to true, "10-09-03" will be parsed as "yy-mm-dd" (3rd Sep 2010).
 	YearFirst bool
-    
+
     // Whether or not to ignore timezones. This only affects the post-processing
     // of the result; timezone information in the input will still be parsed and
     // so still has the chance to trigger parsing errors. If this option is true
     // all returned times have a timezone of UTC+0.
 	IgnoreTZ bool
-    
+
     // A map of custom timezone names to their offsets in seconds. If a timezone
     // name is not found in this map, it is looked up using the
     // time.LoadLocation function.
@@ -293,7 +293,12 @@ func (parser *Parser) Parse(timestr string) (t time.Time, err error) {
 	def := parser.Default
 
 	if def.IsZero() {
-		def = time.Now().Truncate(time.Hour * 24).Add(-time.Hour)
+		def = time.Now()
+		if parser.IgnoreTZ {
+			def = def.UTC()
+		}
+		yy, mm, dd := def.Date()
+		def = time.Date(yy, mm, dd, 0, 0, 0, 0, def.Location())
 	}
 
 	res, err := parser.parseInternal(timestr)
@@ -337,8 +342,8 @@ func (parser *Parser) Parse(timestr string) (t time.Time, err error) {
 	}
 
 	nanosecond := def.Nanosecond()
-	if res.Microsecond != -1 {
-		nanosecond = res.Microsecond * 1000
+	if res.Nanosecond != -1 {
+		nanosecond = res.Nanosecond
 	}
 
 	loc := def.Location()
@@ -396,7 +401,7 @@ func (parser *Parser) parseInternal(timestr string) (res parseresult, err error)
 	res = parseresult{
 		Day:         -1,
 		Hour:        -1,
-		Microsecond: -1,
+		Nanosecond:  -1,
 		Minute:      -1,
 		Month:       -1,
 		Second:      -1,
@@ -424,6 +429,34 @@ loop:
 			i++
 
 			switch {
+			// timestamps since unix "epoch" (sec, ms, or ns).  Valid for timestamps starting
+			// 2001-09-09 and ending 2286-11-20.
+			case numTokens == 1 && (tokenLength == 10 || tokenLength == 13 || tokenLength == 19):
+				s, err := strconv.ParseInt(token[0:10], 10, 64)
+				if err != nil {
+					return res, ParseError{timestr, "Could not parse number", token}
+				}
+
+				var ns int64
+				if tokenLength > 10 {
+					ns, err = strconv.ParseInt(token[10:], 10, 64)
+					if err != nil {
+						return res, ParseError{timestr, "Could not parse number", token[10:]}
+					}
+				}
+				if tokenLength == 13 {
+					ns = ns * 1000 * 1000 // ms to ns
+				}
+
+				t := time.Unix(s, ns).UTC()
+				res.Year = t.Year()
+				res.Month = int(t.Month())
+				res.Day = t.Day()
+				res.Hour = t.Hour()
+				res.Minute = t.Minute()
+				res.Second = t.Second()
+				res.Nanosecond = t.Nanosecond()
+
 			case len(ymd) == 3 &&
 				(tokenLength == 2 || tokenLength == 4) &&
 				(i >= numTokens ||
@@ -481,12 +514,12 @@ loop:
 					}
 
 					res.Minute = int(parseIntResult64)
-					parsems_sec, parsems_ms, parsems_ok := parseMS(token[4:])
-					if !parsems_ok {
+					parsens_sec, parsens_ns, parsens_ok := parseNS(token[4:])
+					if !parsens_ok {
 						return res, ParseError{timestr, "Could not parse sec/ms", token[4:]}
 					}
-					res.Second = parsems_sec
-					res.Microsecond = parsems_ms
+					res.Second = parsens_sec
+					res.Nanosecond = parsens_ns
 				}
 
 			case tokenLength == 8:
@@ -575,12 +608,12 @@ loop:
 						}
 
 					case _HMS_SECOND:
-						parsems_sec, parsems_ms, parsems_ok := parseMS(token)
-						if !parsems_ok {
+						parsens_sec, parsens_ns, parsens_ok := parseNS(token)
+						if !parsens_ok {
 							return res, ParseError{timestr, "Could not parse sec/ms", token}
 						}
-						res.Second = parsems_sec
-						res.Microsecond = parsems_ms
+						res.Second = parsens_sec
+						res.Nanosecond = parsens_ns
 					}
 
 					i++
@@ -614,12 +647,12 @@ loop:
 					}
 
 				} else if hms == _HMS_SECOND {
-					parsems_sec, parsems_ms, parsems_ok := parseMS(token)
-					if !parsems_ok {
+					parsens_sec, parsens_ns, parsens_ok := parseNS(token)
+					if !parsens_ok {
 						return res, ParseError{timestr, "Could not parse sec/ms", token}
 					}
-					res.Second = parsems_sec
-					res.Microsecond = parsems_ms
+					res.Second = parsens_sec
+					res.Nanosecond = parsens_ns
 				}
 
 				i++
@@ -638,12 +671,12 @@ loop:
 				}
 				i++
 				if i < numTokens && tokens[i] == ":" {
-					parsems_sec, parsems_ms, parsems_ok := parseMS(tokens[i+1])
-					if !parsems_ok {
-						return res, ParseError{timestr, "Could not parse sec/ms", tokens[i+1]}
+					parsens_sec, parsens_ns, parsens_ok := parseNS(tokens[i+1])
+					if !parsens_ok {
+						return res, ParseError{timestr, "Could not parse sec/ns", tokens[i+1]}
 					}
-					res.Second = parsems_sec
-					res.Microsecond = parsems_ms
+					res.Second = parsens_sec
+					res.Nanosecond = parsens_ns
 					i += 2
 				}
 
