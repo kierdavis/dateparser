@@ -1004,7 +1004,28 @@ func TestRandomFormat35(t *testing.T) {
 func TestHighPrecisionSeconds(t *testing.T) {
     parser := &Parser{}
     timestr := "20080227T21:26:01.123456789"
-    expect := time.Date(2008, 2, 27, 21, 26, 1, 123456000, UTCLoc) // Parser only stores microseconds, not nanoseconds
+    expect := time.Date(2008, 2, 27, 21, 26, 1, 123456789, UTCLoc)
+    check(t, parser, timestr, expect)
+}
+
+func TestSinceEpochSeconds(t *testing.T) {
+    parser := &Parser{}
+    timestr := "1332151919"
+    expect := time.Date(2012, 3, 19, 10, 11, 59, 0, UTCLoc)
+    check(t, parser, timestr, expect)
+}
+
+func TestSinceEpochMilliSeconds(t *testing.T) {
+    parser := &Parser{}
+    timestr := "1332151919123"
+    expect := time.Date(2012, 3, 19, 10, 11, 59, 123000000, UTCLoc)
+    check(t, parser, timestr, expect)
+}
+
+func TestSinceEpochNanoSeconds(t *testing.T) {
+    parser := &Parser{}
+    timestr := "1332151919123456789"
+    expect := time.Date(2012, 3, 19, 10, 11, 59, 123456789, UTCLoc)
     check(t, parser, timestr, expect)
 }
 
