@@ -160,8 +160,11 @@ var jumpST = stBuild([]stinput{
 var weekdayST = stBuild([]stinput{
 	stinput{"mon", _WEEKDAY_MON},
 	stinput{"tue", _WEEKDAY_TUE},
+	stinput{"tues", _WEEKDAY_TUE},
 	stinput{"wed", _WEEKDAY_WED},
 	stinput{"thu", _WEEKDAY_THU},
+	stinput{"thur", _WEEKDAY_THU},
+	stinput{"thurs", _WEEKDAY_THU},
 	stinput{"fri", _WEEKDAY_FRI},
 	stinput{"sat", _WEEKDAY_SAT},
 	stinput{"sun", _WEEKDAY_SUN},
@@ -206,6 +209,8 @@ var hmsST = stBuild([]stinput{
 	stinput{"h", _HMS_HOUR},
 	stinput{"m", _HMS_MINUTE},
 	stinput{"s", _HMS_SECOND},
+	stinput{"min", _HMS_MINUTE},
+	stinput{"sec", _HMS_SECOND},
 	stinput{"hour", _HMS_HOUR},
 	stinput{"minute", _HMS_MINUTE},
 	stinput{"second", _HMS_SECOND},
@@ -252,37 +257,37 @@ type parseresult struct {
 // Contains the settings used in parsing. An empty structure (new(Parser) or
 // &Parser{}) is suffice to be able to parse dates.
 type Parser struct {
-    // The default time (from which components not present in the input are
-    // taken from). Defaults to the current time truncated to the nearest day
-    // (i.e. midnight today).
+	// The default time (from which components not present in the input are
+	// taken from). Defaults to the current time truncated to the nearest day
+	// (i.e. midnight today).
 	Default time.Time
 
-    // Whether or not to perform a fuzzy search. Specifically, invalid tokens
-    // are ignored if this is true and cause a parse failure if this is false.
+	// Whether or not to perform a fuzzy search. Specifically, invalid tokens
+	// are ignored if this is true and cause a parse failure if this is false.
 	Fuzzy bool
 
-    // In cases where the day and month cannot be distinguished (such as
-    // 10-09-2003), this setting is checked to determine the preferred order.
-    // With DayFirst set to false, "10-09-2003" will be parsed as "mm-dd-yyyy" (9th Oct 2003).
-    // With DayFirst set to true, "10-09-2003" will be parsed as "dd-mm-yyyy" (10th Sep 2003).
+	// In cases where the day and month cannot be distinguished (such as
+	// 10-09-2003), this setting is checked to determine the preferred order.
+	// With DayFirst set to false, "10-09-2003" will be parsed as "mm-dd-yyyy" (9th Oct 2003).
+	// With DayFirst set to true, "10-09-2003" will be parsed as "dd-mm-yyyy" (10th Sep 2003).
 	DayFirst bool
 
-    // In cases where a 2-digit year cannot be distinguished from the day or
-    // month (such as 10-09-03), this setting is checked to determine the
-    // preferred order.
-    // With YearFirst set to false, "10-09-03" will be parsed as "mm-dd-yy" (9th Oct 2003).
-    // With YearFirst set to true, "10-09-03" will be parsed as "yy-mm-dd" (3rd Sep 2010).
+	// In cases where a 2-digit year cannot be distinguished from the day or
+	// month (such as 10-09-03), this setting is checked to determine the
+	// preferred order.
+	// With YearFirst set to false, "10-09-03" will be parsed as "mm-dd-yy" (9th Oct 2003).
+	// With YearFirst set to true, "10-09-03" will be parsed as "yy-mm-dd" (3rd Sep 2010).
 	YearFirst bool
 
-    // Whether or not to ignore timezones. This only affects the post-processing
-    // of the result; timezone information in the input will still be parsed and
-    // so still has the chance to trigger parsing errors. If this option is true
-    // all returned times have a timezone of UTC+0.
+	// Whether or not to ignore timezones. This only affects the post-processing
+	// of the result; timezone information in the input will still be parsed and
+	// so still has the chance to trigger parsing errors. If this option is true
+	// all returned times have a timezone of UTC+0.
 	IgnoreTZ bool
 
-    // A map of custom timezone names to their offsets in seconds. If a timezone
-    // name is not found in this map, it is looked up using the
-    // time.LoadLocation function.
+	// A map of custom timezone names to their offsets in seconds. If a timezone
+	// name is not found in this map, it is looked up using the
+	// time.LoadLocation function.
 	TZInfos map[string]int
 }
 
@@ -1035,5 +1040,5 @@ var defaultParser = new(Parser)
 // control over the parsing, create an instance of Parser and use its Parse
 // method.
 func Parse(timestr string) (t time.Time, err error) {
-    return defaultParser.Parse(timestr)
+	return defaultParser.Parse(timestr)
 }
